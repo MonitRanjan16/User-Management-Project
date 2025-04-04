@@ -1,0 +1,80 @@
+package com.example.assignment.controller;
+
+import com.example.assignment.model.Country;
+import com.example.assignment.repository.CountryRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.Arrays;
+import java.util.List;
+
+@RestController
+@RequestMapping("/countries")
+@RequiredArgsConstructor
+public class CountryController {
+
+    private final CountryRepository countryRepository;
+
+    @GetMapping
+    @PreAuthorize("hasRole('USER')")
+    public List<Country> getAllCountries() {
+        return countryRepository.findAll();
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasRole('USER')")
+    public Country getCountryById(@PathVariable Long id) {
+        return countryRepository.findById(id).orElseThrow(() -> new RuntimeException("Country not found"));
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public Country addCountry(@RequestBody Country country) {
+        return countryRepository.save(country);
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Country updateCountry(@PathVariable Long id, @RequestBody Country updated) {
+        Country country = countryRepository.findById(id).orElseThrow(() -> new RuntimeException("Country not found"));
+        country.setName(updated.getName());
+        country.setCapital(updated.getCapital());
+        country.setRegion(updated.getRegion());
+        country.setPopulation(updated.getPopulation());
+        return countryRepository.save(country);
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public void deleteCountry(@PathVariable Long id) {
+        countryRepository.deleteById(id);
+    }
+
+    @PostMapping("/fetch")
+    @PreAuthorize("hasRole('ADMIN')")
+    public String fetchFromExternalAPI() {
+        RestTemplate restTemplate = new RestTemplate();
+        String url = "https://restcountries.com/v3.1/all";
+        CountryExternalDTO[] response = restTemplate.getForObject(url, CountryExternalDTO[].class);
+
+        if (response != null) {
+            Arrays.stream(response).forEach(dto -> {
+                Country c = new Country();
+                c.setName(dto.getName().getCommon());
+                c.setCapital(dto.getCapital() != null && !dto.getCapital().isEmpty() ? dto.getCapital().get(0) : "N/A");
+                c.setRegion(dto.getRegion());
+                c.setPopulation(dto.getPopulation());
+                countryRepository.save(c);
+            });
+        }
+        return "Countries fetched and saved.";
+    }
+
+    @GetMapping("/search")
+    @PreAuthorize("hasRole('USER')")
+    public List<Country> searchCountriesByName(@RequestParam String name) {
+        return countryRepository.findByNameContainingIgnoreCase(name);
+    }
+}
