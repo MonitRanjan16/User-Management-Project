@@ -1,0 +1,17 @@
+package com.example.assignment.controller;
+
+import lombok.Data;
+import java.util.List;
+
+@Data
+public class CountryExternalDTO {
+    private Name name;
+    private List<String> capital;
+    private String region;
+    private long population;
+
+    @Data
+    public static class Name {
+        private String common;
+    }
+}
